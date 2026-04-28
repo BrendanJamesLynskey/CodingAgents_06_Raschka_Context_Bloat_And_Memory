@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodingAgents 06 &mdash; Context Bloat &amp; Structured Session Memory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a; --bg-card: #0d1117; --bg-code: #161b22;
+            --text-primary: #e6edf3; --text-secondary: #8b949e;
+            --accent: #76B900; --accent-dim: #76B90044; --accent-glow: #76B90033;
+            --warm: #ffa657; --warm-dim: rgba(255,166,87,0.14);
+            --bad:  #ff7b72;
+            --border: #21262d;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --font-body: 'Inter', sans-serif;
+            --max-width: 900px;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body { background: var(--bg-primary); color: var(--text-primary);
+               font-family: var(--font-body); font-size: 17px; line-height: 1.7;
+               overflow-x: hidden; }
+        .hero { min-height: 100vh; display: flex; flex-direction: column;
+                justify-content: center; align-items: center;
+                padding: 2rem 1.5rem; text-align: center; position: relative; }
+        .hero::before { content: ''; position: absolute; top: 0; left: 50%;
+                        transform: translateX(-50%); width: 600px; height: 600px;
+                        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+                        pointer-events: none; z-index: 0; }
+        .hero > * { position: relative; z-index: 1; }
+        .series-label { font-family: var(--font-mono); font-size: 0.85rem;
+                        color: var(--accent); letter-spacing: 0.15em;
+                        text-transform: uppercase; margin-bottom: 1rem; }
+        .hero h1 { font-family: var(--font-display);
+                   font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700;
+                   color: var(--text-primary); line-height: 1.2; margin-bottom: 1rem; }
+        .hero h1 .accent { color: var(--accent); }
+        .hero .subtitle { font-size: 1.1rem; color: var(--text-secondary);
+                          max-width: 720px; margin-bottom: 2rem; }
+        .tags { display: flex; flex-wrap: wrap; gap: 0.5rem;
+                justify-content: center; margin-bottom: 2.5rem; }
+        .tag { font-family: var(--font-mono); font-size: 0.75rem;
+               padding: 0.25rem 0.75rem; border-radius: 999px;
+               border: 1px solid var(--accent); color: var(--accent);
+               background: var(--accent-dim); white-space: nowrap; }
+        .pipeline { display: flex; flex-wrap: wrap; align-items: center;
+                    justify-content: center; gap: 0.25rem; margin-bottom: 1rem;
+                    max-width: var(--max-width); }
+        .pipeline-step { font-family: var(--font-mono); font-size: 0.7rem;
+                         padding: 0.3rem 0.7rem; background: var(--bg-card);
+                         border: 1px solid var(--border); border-radius: 4px;
+                         color: var(--text-secondary); white-space: nowrap; }
+        .pipeline-arrow { color: var(--accent); font-size: 0.9rem; font-weight: 700; }
+        .slide { min-height: 100vh; max-width: var(--max-width);
+                 margin: 0 auto; padding: 4rem 1.5rem; position: relative;
+                 display: flex; flex-direction: column; justify-content: center; }
+        .slide-number { font-family: var(--font-display); font-size: 5rem;
+                        font-weight: 700; color: var(--accent-dim);
+                        position: absolute; top: 2rem; right: 1.5rem;
+                        line-height: 1; user-select: none; }
+        .slide h2 { font-family: var(--font-display); font-size: 1.9rem;
+                    font-weight: 700; color: var(--accent); margin-bottom: 1.5rem;
+                    line-height: 1.25; }
+        .slide h3 { font-family: var(--font-display); font-size: 1.3rem;
+                    font-weight: 600; color: var(--text-primary);
+                    margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .slide p { margin-bottom: 1rem; color: var(--text-secondary); }
+        .slide p strong { color: var(--text-primary); }
+        .slide ul, .slide ol { margin-bottom: 1rem; padding-left: 1.5rem;
+                               color: var(--text-secondary); }
+        .slide li { margin-bottom: 0.4rem; }
+        .slide li strong { color: var(--text-primary); }
+        .slide code { font-family: var(--font-mono); font-size: 0.88em;
+                      background: var(--bg-code); border: 1px solid var(--border);
+                      padding: 0.05rem 0.35rem; border-radius: 3px; color: #c9d1d9; }
+        .code-block { background: var(--bg-code); border: 1px solid var(--border);
+                      border-radius: 8px; margin: 1.25rem 0; overflow: hidden; }
+        .code-header { font-family: var(--font-mono); font-size: 0.75rem;
+                       color: var(--accent); background: rgba(118, 185, 0, 0.08);
+                       padding: 0.4rem 1rem; border-bottom: 1px solid var(--border); }
+        .code-block pre { margin: 0; padding: 1rem; overflow-x: auto; }
+        .code-block code { font-family: var(--font-mono); font-size: 0.85rem;
+                           line-height: 1.6; color: #c9d1d9; background: transparent;
+                           border: none; padding: 0; }
+        .kw { color: #ff7b72; } .fn { color: #d2a8ff; } .str { color: #a5d6ff; }
+        .cm { color: #8b949e; font-style: italic; } .num { color: #79c0ff; }
+        .type { color: #ffa657; }
+        .table-wrap { overflow-x: auto; margin: 1.25rem 0; border-radius: 8px;
+                      border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { background: var(--bg-code); color: var(--accent); font-weight: 600;
+             text-align: left; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
+             font-family: var(--font-display); white-space: nowrap; }
+        td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border);
+             color: var(--text-secondary); }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) td { background: rgba(13, 17, 23, 0.5); }
+        .diagram-vertical { display: flex; flex-direction: column; align-items: center;
+                            gap: 0.3rem; margin: 1.5rem 0; padding: 1.5rem;
+                            background: var(--bg-card); border: 1px solid var(--border);
+                            border-radius: 8px; }
+        .diagram-vertical .diagram-arrow { font-size: 1.1rem; }
+        .diagram-arrow { color: var(--accent); font-size: 1.3rem; font-weight: 700; }
+        .diagram-box { font-family: var(--font-mono); font-size: 0.85rem;
+                       padding: 0.5rem 1rem; background: var(--bg-code);
+                       border: 1px solid var(--border); border-radius: 6px;
+                       color: var(--text-primary); text-align: center; white-space: nowrap; }
+        .diagram-box.accent { border-color: var(--accent); color: var(--accent);
+                              background: rgba(118, 185, 0, 0.08); }
+        .diagram-grid { display: grid; gap: 0.75rem; margin: 1.5rem 0;
+                        padding: 1.5rem; background: var(--bg-card);
+                        border: 1px solid var(--border); border-radius: 8px; }
+        .diagram-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .diagram-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .diagram-panel { padding: 1rem; background: var(--bg-code);
+                         border: 1px solid var(--border); border-radius: 6px; }
+        .diagram-panel.accent-border { border-left: 3px solid var(--accent); }
+        .diagram-panel.warn-border   { border-left: 3px solid var(--warm); }
+        .diagram-panel.bad-border    { border-left: 3px solid var(--bad); }
+        .diagram-panel h4 { font-family: var(--font-display); font-size: 1rem;
+                            color: var(--accent); margin-bottom: 0.5rem; }
+        .diagram-panel.warn-border h4 { color: var(--warm); }
+        .diagram-panel.bad-border h4  { color: var(--bad); }
+        .diagram-panel p, .diagram-panel ul { font-size: 0.85rem; }
+        .callout { background: var(--bg-card); border-left: 3px solid var(--accent);
+                   border-radius: 0 8px 8px 0; padding: 1rem 1.25rem; margin: 1.25rem 0; }
+        .callout p { margin-bottom: 0; }
+        .callout p + p { margin-top: 0.5rem; }
+        .callout .callout-label { font-family: var(--font-mono); font-size: 0.75rem;
+                                  color: var(--accent); text-transform: uppercase;
+                                  letter-spacing: 0.1em; margin-bottom: 0.3rem; }
+        .contents-list { list-style: none; padding-left: 0; counter-reset: contents; }
+        .contents-list li { counter-increment: contents; padding: 0.6rem 0;
+                            border-bottom: 1px solid var(--border);
+                            display: flex; align-items: center; gap: 1rem; }
+        .contents-list li:last-child { border-bottom: none; }
+        .contents-list li::before { content: counter(contents, decimal-leading-zero);
+                                    font-family: var(--font-mono); font-size: 0.85rem;
+                                    color: var(--accent); min-width: 2rem; }
+        .contents-list a { color: var(--text-primary); text-decoration: none;
+                           transition: color 0.2s; }
+        .contents-list a:hover { color: var(--accent); }
+        .footer { text-align: center; padding: 3rem 1.5rem;
+                  color: var(--text-secondary); font-size: 0.85rem;
+                  border-top: 1px solid var(--border); max-width: var(--max-width);
+                  margin: 0 auto; }
+        .footer a { color: var(--accent); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        .canvas-wrap { background: var(--bg-card); border: 1px solid var(--border);
+                       border-radius: 8px; padding: 1rem; margin: 1.25rem 0;
+                       overflow-x: auto; }
+        .canvas-wrap canvas, .canvas-wrap svg { display: block; margin: 0 auto;
+                                                 max-width: 100%; }
+        .ref-link { display: inline-block; padding: 0.4rem 0.8rem;
+                    border: 1px solid var(--accent); color: var(--accent);
+                    border-radius: 4px; text-decoration: none;
+                    font-family: var(--font-mono); font-size: 0.8rem; }
+
+        /* Memory diagram side-by-side */
+        .mem-card { background: var(--bg-card); border: 1px solid var(--border);
+                    border-radius: 8px; padding: 1rem; }
+        .mem-card.full   { border-left: 3px solid var(--warm); }
+        .mem-card.work   { border-left: 3px solid var(--accent); }
+        .mem-card h4 { font-family: var(--font-display); font-size: 1rem; margin-bottom: 0.5rem; }
+        .mem-card.full h4 { color: var(--warm); }
+        .mem-card.work h4 { color: var(--accent); }
+        .mem-card pre { background: var(--bg-code); border: 1px solid var(--border);
+                        border-radius: 6px; padding: 0.85rem; font-family: var(--font-mono);
+                        font-size: 0.78rem; color: #c9d1d9; overflow-x: auto;
+                        margin: 0.5rem 0; }
+        .mem-card .meta { font-family: var(--font-mono); font-size: 0.7rem;
+                          color: var(--text-secondary); margin-top: 0.5rem; }
+
+        /* Context budget calculator */
+        .ctx-card { background: var(--bg-card); border: 1px solid var(--border);
+                    border-left: 3px solid var(--accent); border-radius: 8px;
+                    padding: 1.25rem; margin: 1.25rem 0; }
+        .ctx-card label { display: block; font-family: var(--font-mono); font-size: 0.78rem;
+                          color: var(--text-secondary); margin-bottom: 0.3rem; }
+        .ctx-card input[type="range"] { width: 100%; accent-color: var(--accent); }
+        .ctx-card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.8rem; }
+        .ctx-card .readout { font-family: var(--font-mono); font-size: 0.9rem; color: var(--accent); }
+        .ctx-bar-wrap { background: var(--bg-code); border: 1px solid var(--border);
+                        border-radius: 6px; height: 36px; display: flex;
+                        overflow: hidden; margin: 0.7rem 0; }
+        .ctx-seg { display: flex; align-items: center; justify-content: center;
+                   font-family: var(--font-mono); font-size: 0.7rem;
+                   color: #050505; font-weight: 600; transition: width 0.25s; }
+        .ctx-seg.s-prefix    { background: rgba(118,185,0,0.85); }
+        .ctx-seg.s-trans     { background: rgba(118,185,0,0.55); color: #fff; }
+        .ctx-seg.s-mem       { background: rgba(255,166,87,0.85); color: #050505; }
+        .ctx-seg.s-tool      { background: rgba(255,123,114,0.65); color: #fff; }
+        .ctx-seg.s-user      { background: rgba(255,123,114,0.40); color: #fff; }
+        .ctx-seg.s-headroom  { background: #21262d; color: #8b949e; }
+        .ctx-key { display: flex; gap: 0.6rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.7rem; margin-top: 0.4rem; }
+        .ctx-key span { padding: 0.1rem 0.55rem; border-radius: 999px; }
+        .ctx-warn { color: var(--warm); font-family: var(--font-mono); font-size: 0.78rem;
+                    margin-top: 0.5rem; padding: 0.4rem 0.7rem; border: 1px dashed var(--warm); border-radius: 6px; display: none; }
+        .ctx-warn.show { display: block; }
+
+        @media (max-width: 640px) {
+            .slide { padding: 3rem 1rem; min-height: auto; }
+            .slide-number { font-size: 3rem; top: 1.5rem; right: 1rem; }
+            .slide h2 { font-size: 1.5rem; }
+            .diagram-grid.cols-2, .diagram-grid.cols-3 { grid-template-columns: 1fr; }
+            .ctx-card .row { grid-template-columns: 1fr; }
+            .pipeline { gap: 0.15rem; }
+            .pipeline-step { font-size: 0.6rem; padding: 0.2rem 0.4rem; }
+            .hero h1 { font-size: 1.8rem; }
+            table { font-size: 0.78rem; }
+        }
+    </style>
+</head>
+<body>
+<header class="hero">
+    <div class="series-label">Coding Agents Internals Series &mdash; Presentation 06</div>
+    <h1>Minimising Context Bloat &amp; <span class="accent">Structured Session Memory</span></h1>
+    <p class="subtitle">Companion deck for Components&nbsp;4 + 5 of Sebastian Raschka&rsquo;s essay. The harness levers that turn a runaway 200k-token transcript back into a focused, useful prompt &mdash; clipping, dedup, recency, summarisation &mdash; plus the storage-time discipline of working memory vs full transcript.</p>
+    <div class="tags">
+        <span class="tag">Clipping</span>
+        <span class="tag">Dedup</span>
+        <span class="tag">Recency weighting</span>
+        <span class="tag">Compaction</span>
+        <span class="tag">Working memory</span>
+        <span class="tag">JSONL transcripts</span>
+    </div>
+    <div class="pipeline">
+        <span class="pipeline-step">Raw transcript</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Clip</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Dedupe</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Summarise</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Recency-weight</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Working memory</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Prompt</span>
+    </div>
+</header>
+
+<section class="slide" id="slide-00">
+    <div class="slide-number">00</div>
+    <h2>Topics We&rsquo;ll Cover</h2>
+    <ul class="contents-list">
+        <li><a href="#slide-01">Why Long Contexts Hurt</a></li>
+        <li><a href="#slide-02">Strategy 1 &mdash; Clipping Tool Outputs</a></li>
+        <li><a href="#slide-03">Strategy 2 &mdash; Transcript Summarisation</a></li>
+        <li><a href="#slide-04">Strategy 3 &mdash; Recency Weighting</a></li>
+        <li><a href="#slide-05">Strategy 4 &mdash; Deduplication</a></li>
+        <li><a href="#slide-06">Two Layers of Memory &mdash; Storage-Time vs Prompt-Time</a></li>
+        <li><a href="#slide-07">What Actually Lives in Working Memory</a></li>
+        <li><a href="#slide-08">Interactive: Context-Budget Visualizer</a></li>
+        <li><a href="#slide-09">Pitfalls &mdash; Where Compaction Bites Back</a></li>
+        <li><a href="#slide-10">Things to Try Yourself</a></li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-01">
+    <div class="slide-number">01</div>
+    <h2>Why Long Contexts Hurt</h2>
+    <p>You might think that bigger context windows solved the bloat problem. They didn&rsquo;t. They just moved it. Three independent forces still push back against feeding the model everything you have.</p>
+
+    <div class="diagram-grid cols-3">
+        <div class="diagram-panel accent-border">
+            <h4>Cost grows linearly</h4>
+            <p>At $15 per million input tokens, a 200k-token prompt costs $3 per turn. A 30-turn session at full context is $90. Caching helps the prefix, but tool outputs and growing transcripts are cache-cold. Every wasted token is real money.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Latency grows linearly</h4>
+            <p>Time-to-first-token scales roughly with input length even with caching. A coding agent that takes 8 seconds per turn instead of 2 feels broken, regardless of correctness.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Accuracy degrades non-linearly</h4>
+            <p>The &ldquo;lost in the middle&rdquo; effect: models reliably attend to the start and end of context, but content in the middle gets de-prioritised. A 150k-token prompt with the answer at position 75k may underperform a 20k-token prompt with the answer at position 18k.</p>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Raschka&rsquo;s lever</div>
+        <p><em>&ldquo;A lot of apparent &lsquo;model quality&rsquo; is really context quality.&rdquo;</em> When an agent stops working on a complex task &mdash; misremembers a decision, re-edits a file the user already corrected, asks a question it already had the answer to &mdash; the cause is rarely the model&rsquo;s reasoning. It is what the harness chose to put in front of the model that turn.</p>
+    </div>
+
+    <h3>Where the bloat comes from</h3>
+    <ul>
+        <li><strong>Tool outputs</strong> &mdash; a single <code>npm install</code> can produce 8 000 lines of warnings.</li>
+        <li><strong>File reads</strong> &mdash; the same 1 200-line file read on turns 3, 7, and 14.</li>
+        <li><strong>Test failures</strong> &mdash; a pytest run with 50 errors expands into a 30k-token wall.</li>
+        <li><strong>Logs and stack traces</strong> &mdash; native to dev work, hostile to prompts.</li>
+        <li><strong>Successful past steps</strong> &mdash; once the migration script ran, the next 20 turns don&rsquo;t need its output.</li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-02">
+    <div class="slide-number">02</div>
+    <h2>Strategy 1 &mdash; Clipping Tool Outputs</h2>
+    <p>The cheapest, most effective compaction technique. Cap every individual tool result at a fixed budget &mdash; usually 1 000&ndash;3 000 tokens. Anything longer is truncated with an explicit marker the model can ask to expand.</p>
+
+    <div class="code-block">
+        <div class="code-header">A clipping function with re-expansion support</div>
+<pre><code><span class="kw">def</span> <span class="fn">clip_output</span>(text: <span class="type">str</span>, max_tokens: <span class="type">int</span> = <span class="num">1500</span>,
+                head_frac: <span class="type">float</span> = <span class="num">0.6</span>) <span class="kw">-&gt;</span> <span class="type">tuple</span>[<span class="type">str</span>, ClipMeta]:
+    <span class="cm"># Token-aware clip; head + tail with elision marker.</span>
+    tokens = tokenize(text)
+    <span class="kw">if</span> len(tokens) &lt;= max_tokens:
+        <span class="kw">return</span> text, ClipMeta(clipped=<span class="kw">False</span>)
+
+    head_n = int(max_tokens * head_frac)
+    tail_n = max_tokens - head_n - <span class="num">12</span>            <span class="cm"># reserve space for the marker</span>
+    head   = detokenize(tokens[:head_n])
+    tail   = detokenize(tokens[-tail_n:])
+
+    elided = len(tokens) - head_n - tail_n
+    marker = (<span class="str">f"\n\n[... {elided} tokens elided "</span>
+              <span class="str">f"&mdash; ask 'expand_clip(id={id(text)})' to see full output ...]\n\n"</span>)
+
+    <span class="kw">return</span> head + marker + tail, ClipMeta(
+        clipped=<span class="kw">True</span>, original_len=len(tokens), elided=elided, full_blob_id=id(text))</code></pre>
+    </div>
+
+    <h3>Where to clip and where not to</h3>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Always clip</h4>
+            <ul>
+                <li>File reads &gt; 1 500 tokens (model can ask for specific line ranges).</li>
+                <li>Build / install / dependency-resolution output.</li>
+                <li>Test runner output with many failures &mdash; keep summary + first 3 failures.</li>
+                <li>Any web fetch result.</li>
+            </ul>
+        </div>
+        <div class="diagram-panel warn-border">
+            <h4>Never clip</h4>
+            <ul>
+                <li>Compiler errors that point to a single line. Model needs the whole error to fix it.</li>
+                <li>Diffs that the user is being asked to approve. Truncating the diff defeats the approval gate.</li>
+                <li>Search results with line-and-file context smaller than the budget.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">An asymmetric clip pattern that works</div>
+        <p>For tool outputs, keep <strong>more head than tail</strong> &mdash; usually 60/40. The most-relevant context for the model is typically near the start (file imports, error type) with the actual error or value near the end. The 60/40 head/tail split outperforms a symmetric 50/50 in nearly every measurement we&rsquo;ve seen.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-03">
+    <div class="slide-number">03</div>
+    <h2>Strategy 2 &mdash; Transcript Summarisation</h2>
+    <p>Clipping handles individual outputs. Compaction handles the whole transcript: collapse old turns into a short summary, keeping recent ones verbatim. Raschka calls this <em>&ldquo;transcript reduction/summarisation&rdquo;</em> &mdash; an LLM-driven step that periodically rewrites the session history.</p>
+
+    <div class="diagram-vertical">
+        <div class="diagram-box">Turn 1: read pool.py</div>
+        <div class="diagram-box">Turn 2: read tests/test_pool.py</div>
+        <div class="diagram-box">Turn 3: ran pytest, 4 failures</div>
+        <div class="diagram-box">Turn 4: read migrations.py</div>
+        <div class="diagram-box">Turn 5: edited pool.py (added eviction guard)</div>
+        <div class="diagram-arrow">&darr;&nbsp; compaction trigger at turn 6</div>
+        <div class="diagram-box accent">Summary: explored pool.py + tests + migrations. 4 tests failing.<br>Edited pool.py at line 88 to add eviction guard. Tests not yet rerun.</div>
+        <div class="diagram-box">Turn 6: rerun pytest &mdash; verbatim</div>
+        <div class="diagram-box">Turn 7: current turn &mdash; verbatim</div>
+    </div>
+
+    <h3>When to trigger compaction</h3>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Trigger</th><th>How it works</th><th>Trade-off</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><strong>Token threshold</strong></td>
+                    <td>When transcript size exceeds, e.g., 30% of context window, compact the oldest 70% of turns.</td>
+                    <td>Predictable; can fire mid-task and lose nuance.</td>
+                </tr>
+                <tr>
+                    <td><strong>Turn-count threshold</strong></td>
+                    <td>Every N turns (often 10), compact the older N&minus;3 turns.</td>
+                    <td>Simple; ignores actual size; can over-compact tiny turns.</td>
+                </tr>
+                <tr>
+                    <td><strong>User-driven</strong></td>
+                    <td>The user runs <code>/compact</code> (Claude Code) or similar before a long-running task.</td>
+                    <td>Predictable but requires user awareness.</td>
+                </tr>
+                <tr>
+                    <td><strong>Idle compaction</strong></td>
+                    <td>Compact during idle waiting (user thinking) so the next turn starts clean.</td>
+                    <td>Hides cost; complex to schedule reliably.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">A summarisation prompt that survives</div>
+        <p>Summarising a coding session well is its own prompt-engineering problem. The minimum that works: <em>&ldquo;Summarise the following turns in 200 tokens or fewer. Preserve: file paths touched, decisions made, blocking issues, the next planned action. Discard: tool-result text, internal model thinking, redundant reads.&rdquo;</em> Models that get this prompt produce summaries an order of magnitude more useful than &ldquo;summarise the conversation&rdquo;.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-04">
+    <div class="slide-number">04</div>
+    <h2>Strategy 3 &mdash; Recency Weighting</h2>
+    <p>Raschka&rsquo;s phrasing: <em>&ldquo;keep recent events richer because they are more likely to matter for the current step&rdquo;</em>. Concretely, this is a sliding policy that gets more aggressive about compression the further back a turn is.</p>
+
+    <div class="canvas-wrap">
+        <svg viewBox="0 0 700 200" width="700" height="200" xmlns="http://www.w3.org/2000/svg">
+            <style>
+                .ax  { stroke: #30363d; stroke-width: 1; }
+                .lbl { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+                .ttl { fill: #76B900; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; }
+                .bar1 { fill: #76B900; }
+                .bar2 { fill: rgba(118,185,0,0.55); }
+                .bar3 { fill: rgba(118,185,0,0.30); }
+                .bar4 { fill: rgba(255,166,87,0.50); }
+                .bar5 { fill: rgba(255,123,114,0.50); }
+            </style>
+            <text class="ttl" x="20" y="22">Compression aggressiveness vs turn age</text>
+
+            <line class="ax" x1="60" y1="40" x2="60" y2="170"/>
+            <line class="ax" x1="60" y1="170" x2="680" y2="170"/>
+
+            <!-- five bars, height = retention richness -->
+            <rect class="bar5" x="80"  y="155" width="100" height="15"/>
+            <text class="lbl" x="130" y="148" text-anchor="middle">summary only</text>
+            <rect class="bar4" x="200" y="135" width="100" height="35"/>
+            <text class="lbl" x="250" y="128" text-anchor="middle">heavily compressed</text>
+            <rect class="bar3" x="320" y="100" width="100" height="70"/>
+            <text class="lbl" x="370" y="93"  text-anchor="middle">moderate clip</text>
+            <rect class="bar2" x="440" y="70"  width="100" height="100"/>
+            <text class="lbl" x="490" y="63"  text-anchor="middle">light clip</text>
+            <rect class="bar1" x="560" y="50"  width="100" height="120"/>
+            <text class="lbl" x="610" y="43"  text-anchor="middle">verbatim</text>
+
+            <text class="lbl" x="130" y="186" text-anchor="middle">turns 1-5</text>
+            <text class="lbl" x="250" y="186" text-anchor="middle">turns 6-10</text>
+            <text class="lbl" x="370" y="186" text-anchor="middle">turns 11-15</text>
+            <text class="lbl" x="490" y="186" text-anchor="middle">turns 16-19</text>
+            <text class="lbl" x="610" y="186" text-anchor="middle">turn 20 (now)</text>
+
+            <text class="lbl" x="55"  y="50"  text-anchor="end">rich</text>
+            <text class="lbl" x="55"  y="170" text-anchor="end">poor</text>
+        </svg>
+    </div>
+
+    <p>The policy is a function of turn age, not of content importance &mdash; importance gets folded in via the working-memory layer (covered next slide). The age-only rule is what makes the policy cheap to implement and predictable for users.</p>
+
+    <div class="callout">
+        <div class="callout-label">A counter-intuitive consequence</div>
+        <p>Heavily compressing old turns means the model often <em>forgets that it tried something three turns ago</em>. That&rsquo;s usually fine (it can re-discover) and sometimes bad (it loops). The fix is not to keep the old turn verbatim; it is to surface the relevant fact (&ldquo;tried X, didn&rsquo;t work because Y&rdquo;) into the working memory, where it stays even after the turn that produced it has been compacted.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-05">
+    <div class="slide-number">05</div>
+    <h2>Strategy 4 &mdash; Deduplication</h2>
+    <p>The fourth lever is the easiest to forget and one of the most effective. When a coding session reads <code>src/db/pool.py</code> on turns 3, 7, and 14, the prompt should not contain three copies of that file. Most agents do this badly out of the box.</p>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>What to dedupe</h4>
+            <ul>
+                <li><strong>Repeated file reads</strong> &mdash; if turn N reads file F and turn N+5 reads F unchanged, the older read can be elided.</li>
+                <li><strong>Repeated search hits</strong> &mdash; same query, same results, drop the older.</li>
+                <li><strong>Repeated tool errors</strong> &mdash; the same &ldquo;file not found&rdquo; thrice tells the model nothing the first occurrence didn&rsquo;t.</li>
+            </ul>
+        </div>
+        <div class="diagram-panel warn-border">
+            <h4>What NOT to dedupe</h4>
+            <ul>
+                <li><strong>File reads of files that changed</strong> &mdash; the model needs to see the new state.</li>
+                <li><strong>Test runs</strong> &mdash; even the same command may produce different results.</li>
+                <li><strong>User messages</strong> &mdash; never silently drop user input.</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>Implementing dedup</h3>
+    <div class="code-block">
+        <div class="code-header">Content-hash dedup over the transcript</div>
+<pre><code><span class="kw">def</span> <span class="fn">dedupe_transcript</span>(turns: <span class="type">list</span>[Turn]) <span class="kw">-&gt;</span> <span class="type">list</span>[Turn]:
+    seen: <span class="type">dict</span>[<span class="type">str</span>, <span class="type">int</span>] = {}
+    out: <span class="type">list</span>[Turn] = []
+    <span class="kw">for</span> i, t <span class="kw">in</span> enumerate(turns):
+        <span class="kw">if</span> t.kind == <span class="str">"tool_result"</span>:
+            key = sha256((t.tool_name + t.tool_args).encode()).hexdigest()
+            <span class="kw">if</span> key <span class="kw">in</span> seen:
+                <span class="cm"># mark the older one as deduped, keep only a pointer</span>
+                older = seen[key]
+                out[older] = older.replaced_with_pointer(turn_index=i)
+            seen[key] = i
+        out.append(t)
+    <span class="kw">return</span> out</code></pre>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">A subtle case the article calls out</div>
+        <p>Dedup must happen <em>before</em> the cache breakpoint logic decides what to send. If you dedupe in the prompt builder but the underlying transcript on disk still has duplicates, the cache prefix will keep mismatching across turns. Treat dedup as a normalisation step that happens once per turn, with deterministic output.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-06">
+    <div class="slide-number">06</div>
+    <h2>Two Layers of Memory</h2>
+    <p>Component&nbsp;5 introduces a separation that often gets missed in casual descriptions of agents. There are <em>two</em> distinct memories in a healthy harness, with different jobs.</p>
+
+    <div class="diagram-grid cols-2" style="background: var(--bg-card);">
+        <div class="mem-card full">
+            <h4>Full transcript &mdash; storage</h4>
+            <pre>// session-9f7a.jsonl
+{"role":"user","content":"fix the failing tests"}
+{"role":"assistant","tool_use":"read_file",
+ "args":{"path":"src/db/pool.py"}}
+{"role":"tool_result","content":"&lt;1421 bytes&gt;"}
+{"role":"assistant","tool_use":"bash",
+ "args":{"command":"pytest -q"}}
+{"role":"tool_result","content":"&lt;6800 bytes&gt;"}
+... (50 more turns)</pre>
+            <div class="meta">JSONL on disk &middot; complete fidelity &middot; survives restart &middot; basis for replay, audit, summarisation</div>
+        </div>
+        <div class="mem-card work">
+            <h4>Working memory &mdash; what stays in the prompt</h4>
+            <pre>{
+  "task": "fix idle-eviction tests",
+  "important_files": [
+    "src/db/pool.py",
+    "tests/test_pool.py"
+  ],
+  "decisions": [
+    "use monotonic clock not wall clock",
+    "evict only when pool is at capacity"
+  ],
+  "open_question": "should min_size be enforced?",
+  "next": "rerun pytest after edit"
+}</pre>
+            <div class="meta">Small JSON &middot; rewritten each turn &middot; sits in the prompt &middot; basis for cross-turn continuity</div>
+        </div>
+    </div>
+
+    <h3>The article&rsquo;s exact distinction</h3>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel warn-border">
+            <h4>Compact transcript = prompt-time</h4>
+            <p>Component&nbsp;4. Reconstructs what the model sees <em>this turn</em>, by clipping, deduping, summarising, and recency-weighting the full transcript. Throwaway. Re-built every turn from the storage layer.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Working memory = storage-time</h4>
+            <p>Component&nbsp;5. A small structured file the harness <em>writes deliberately</em> as the session progresses. Survives compaction. Carries decisions and open threads forward across many turns or even across sessions.</p>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Why two layers and not one?</div>
+        <p>The compaction system lossily compresses old turns to fit the prompt budget. If a critical decision lives only in turn 4 of a 30-turn session, by turn 25 it&rsquo;s gone &mdash; even though it&rsquo;s the most load-bearing piece of context. Working memory is the harness&rsquo;s mechanism for <em>committing</em> facts to a layer that doesn&rsquo;t lossy-compress. It&rsquo;s persistence with intent.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-07">
+    <div class="slide-number">07</div>
+    <h2>What Actually Lives in Working Memory</h2>
+    <p>Working memory should be small &mdash; 200&ndash;800 tokens is typical &mdash; and tightly structured. Bloated working memory is a contradiction in terms.</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Field</th><th>Holds</th><th>Updated when</th></tr></thead>
+            <tbody>
+                <tr><td><code>task</code></td><td>One-line statement of what the user is trying to accomplish.</td><td>Set at session start; rewritten if the user pivots.</td></tr>
+                <tr><td><code>important_files</code></td><td>3&ndash;7 paths the agent has identified as load-bearing for this task.</td><td>Each time a new file is touched non-trivially.</td></tr>
+                <tr><td><code>decisions</code></td><td>Short, bullet-style record of choices made &mdash; algorithms, data structures, naming. The thing summarisation tends to drop.</td><td>Each time the agent commits to an approach.</td></tr>
+                <tr><td><code>open_questions</code></td><td>Things the agent is unsure about and may need to ask.</td><td>Each time uncertainty is raised &mdash; cleared when answered.</td></tr>
+                <tr><td><code>next</code></td><td>The single next action. The agent&rsquo;s plan from <em>this turn</em>.</td><td>Every turn.</td></tr>
+                <tr><td><code>blockers</code></td><td>Tests still failing, missing dependencies, build errors.</td><td>As they appear or are resolved.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>How working memory gets updated</h3>
+    <p>Two patterns coexist in the wild:</p>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Tool-mediated update</h4>
+            <p>The harness exposes a <code>update_working_memory</code> tool. The model emits a structured edit and the harness applies it. Pro: explicit, auditable, the model has to articulate its reasoning. Con: extra tool call per turn.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Harness-side derivation</h4>
+            <p>After each turn, the harness runs a small summariser that updates working memory automatically based on what the turn touched. Pro: no extra tool call. Con: hidden machinery; harder to debug when working memory drifts.</p>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Cross-session memory</div>
+        <p>Some harnesses (Claude Code with <code>/memory</code> commands, or its automatic memory feature) persist a subset of working memory <em>across</em> sessions. This is more controversial: cross-session memory can encode helpful user preferences (<em>&ldquo;always run pytest with -q&rdquo;</em>) or terrible stale beliefs (<em>&ldquo;the test framework is unittest&rdquo;</em> &mdash; six months later it&rsquo;s pytest). Treat it as a useful tool with a non-trivial maintenance cost: review and prune.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-08">
+    <div class="slide-number">08</div>
+    <h2>Interactive: Context-Budget Visualizer</h2>
+    <p>Slide the inputs to see how each compaction strategy reshapes a turn&rsquo;s prompt. The bar shows how the context window is allocated; the warning lights up when the budget overflows the model&rsquo;s window.</p>
+
+    <div class="ctx-card">
+        <div class="row">
+            <div>
+                <label for="windowSlider">Model context window <span class="readout" id="windowOut">200 000</span> tok</label>
+                <input id="windowSlider" type="range" min="32000" max="1000000" step="1000" value="200000">
+            </div>
+            <div>
+                <label for="prefixSlider2">Stable prefix <span class="readout" id="prefixOut2">5 000</span> tok</label>
+                <input id="prefixSlider2" type="range" min="500" max="20000" step="500" value="5000">
+            </div>
+        </div>
+        <div class="row">
+            <div>
+                <label for="rawTransSlider">Raw transcript size <span class="readout" id="rawTransOut">85 000</span> tok</label>
+                <input id="rawTransSlider" type="range" min="1000" max="500000" step="1000" value="85000">
+            </div>
+            <div>
+                <label for="compactRatioSlider">Compaction ratio <span class="readout" id="compactRatioOut">0.20</span></label>
+                <input id="compactRatioSlider" type="range" min="0.05" max="1.00" step="0.01" value="0.20">
+            </div>
+        </div>
+        <div class="row">
+            <div>
+                <label for="toolClipSlider">Latest tool result clipped to <span class="readout" id="toolClipOut">1 500</span> tok</label>
+                <input id="toolClipSlider" type="range" min="100" max="20000" step="100" value="1500">
+            </div>
+            <div>
+                <label for="memSlider">Working memory <span class="readout" id="memOut">600</span> tok</label>
+                <input id="memSlider" type="range" min="0" max="3000" step="50" value="600">
+            </div>
+        </div>
+
+        <div class="ctx-bar-wrap" id="ctxBar"></div>
+        <div class="ctx-key">
+            <span style="background:rgba(118,185,0,0.85); color:#050505;">stable prefix</span>
+            <span style="background:rgba(118,185,0,0.55); color:#fff;">compacted transcript</span>
+            <span style="background:rgba(255,166,87,0.85); color:#050505;">working memory</span>
+            <span style="background:rgba(255,123,114,0.65); color:#fff;">tool result</span>
+            <span style="background:rgba(255,123,114,0.40); color:#fff;">user msg</span>
+            <span style="background:#21262d; color:#8b949e;">headroom</span>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); margin-top: 0.5rem;">
+            Total prompt: <span id="ctxTotal">&mdash;</span> tok &middot; headroom: <span id="ctxFree">&mdash;</span> tok
+        </div>
+        <div class="ctx-warn" id="ctxWarn">&#9888; Prompt exceeds the model&rsquo;s context window &mdash; the harness must compact harder or truncate the oldest turns.</div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">What to play with</div>
+        <p>Try the same raw transcript size at compaction ratios 1.00 (no compaction), 0.30, and 0.10. Notice how aggressively a small ratio can recover headroom &mdash; and how a too-aggressive ratio leaves no room for the actual session content. The art of Component&nbsp;4 is staying in the comfortable middle of this knob.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-09">
+    <div class="slide-number">09</div>
+    <h2>Pitfalls &mdash; Where Compaction Bites Back</h2>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel warn-border">
+            <h4>Summary loses the diff</h4>
+            <p>The compactor summarises &ldquo;edited pool.py to add eviction guard&rdquo; without keeping the actual code. Three turns later the model writes a different guard. Mitigate: store the most-recent edit&rsquo;s diff in working memory, not just the description.</p>
+        </div>
+        <div class="diagram-panel warn-border">
+            <h4>Dedup hides a real change</h4>
+            <p>The agent reads <code>config.yaml</code> on turn 5 and again on turn 12, but between them the user edited it. If dedup elides the second read, the model uses stale config. Mitigate: hash by content, not by request.</p>
+        </div>
+        <div class="diagram-panel warn-border">
+            <h4>Working memory drifts from reality</h4>
+            <p>The model thinks the test framework is pytest because that was true 30 turns ago, but the user switched to unittest. Mitigate: refresh working memory from observed tool results, not just from prior model assertions.</p>
+        </div>
+        <div class="diagram-panel warn-border">
+            <h4>Compaction during a multi-turn task</h4>
+            <p>The user is mid-debug, the agent has explored four files and proposed a plan. Compaction fires, summary loses the plan&rsquo;s structure, agent restarts the exploration. Mitigate: don&rsquo;t compact while a planned action is in flight; gate on a quiet point.</p>
+        </div>
+        <div class="diagram-panel bad-border">
+            <h4>Lost-in-the-middle of working memory</h4>
+            <p>If working memory grows past ~1 500 tokens, the &ldquo;lost in the middle&rdquo; effect bites it too. Keep it small and structured; if you have more state than fits, that state belongs in named files in the workspace, not in working memory.</p>
+        </div>
+        <div class="diagram-panel bad-border">
+            <h4>Summarising secrets into the prompt</h4>
+            <p>A tool result accidentally contained an API key; the summariser dutifully includes it in the compact transcript. Now it&rsquo;s in every subsequent prompt. Mitigate: redact at clipping time, never at summarisation time.</p>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-number">10</div>
+    <h2>Things to Try Yourself</h2>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Plot context vs turns</h4>
+            <p>Instrument an agent run: log the prompt size at every turn. Plot it. Healthy sessions stay roughly flat after turn 5; unhealthy ones grow linearly until they hit the window. The slope is the bug.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Diff your working memory across turns</h4>
+            <p>Save working memory at every turn. Run <code>diff</code> between adjacent turns. Are most updates additive (good)? Or does the same field churn every turn (bad &mdash; suggests your update logic is unstable)?</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Replay with different compaction ratios</h4>
+            <p>Take a recorded session. Replay it with compaction ratios 1.00, 0.50, 0.20. Does the agent reach the same answer? Where does aggressive compaction break correctness? That tells you where your important state lives.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Build a clipping function with re-expansion</h4>
+            <p>Implement <code>clip_output</code> + an <code>expand_clip(id)</code> tool. Watch how often the model uses it. Models that have a re-expansion mechanism stop being scared of the clip marker; they ask back when they need to.</p>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Where this leads</div>
+        <p>Components 4 and 5 keep <em>one</em> agent&rsquo;s context healthy. Component&nbsp;6 &mdash; subagents &mdash; is the next lever: when the task is bigger than one context can hold, you spin up a bounded child to handle a piece of it. That&rsquo;s the next deck.</p>
+    </div>
+
+    <p style="text-align: center; margin-top: 2rem;">
+        <a class="ref-link" href="https://brendanjameslynskey.github.io/CodingAgents_07_Raschka_Subagents_And_Synthesis/">Next deck &rarr; Subagents &amp; Synthesis</a>
+    </p>
+</section>
+
+<footer class="footer">
+    <p>Companion to <a href="https://magazine.sebastianraschka.com/p/components-of-a-coding-agent" target="_blank" rel="noopener">Sebastian Raschka, &ldquo;Components of a Coding Agent&rdquo;</a> &mdash; Components 4 &amp; 5</p>
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Coding_Agents">Coding Agents Internals Series</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem;"><a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Coding_Agents">Back to Series Index</a></p>
+</footer>
+
+<script>
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.slide').forEach(slide => {
+        slide.style.opacity = '0';
+        slide.style.transform = 'translateY(30px)';
+        slide.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(slide);
+    });
+
+    // Context-budget visualizer
+    const els = {
+        window:        document.getElementById('windowSlider'),
+        prefix:        document.getElementById('prefixSlider2'),
+        rawTrans:      document.getElementById('rawTransSlider'),
+        compactRatio:  document.getElementById('compactRatioSlider'),
+        toolClip:      document.getElementById('toolClipSlider'),
+        mem:           document.getElementById('memSlider'),
+    };
+    const outs = {
+        window:       document.getElementById('windowOut'),
+        prefix:       document.getElementById('prefixOut2'),
+        rawTrans:     document.getElementById('rawTransOut'),
+        compactRatio: document.getElementById('compactRatioOut'),
+        toolClip:     document.getElementById('toolClipOut'),
+        mem:          document.getElementById('memOut'),
+    };
+    const bar      = document.getElementById('ctxBar');
+    const totalEl  = document.getElementById('ctxTotal');
+    const freeEl   = document.getElementById('ctxFree');
+    const warnEl   = document.getElementById('ctxWarn');
+
+    function recomputeCtx() {
+        const window       = +els.window.value;
+        const prefix       = +els.prefix.value;
+        const rawTrans     = +els.rawTrans.value;
+        const compactRatio = +els.compactRatio.value;
+        const toolClip     = +els.toolClip.value;
+        const mem          = +els.mem.value;
+        const userMsg      = 100;  // fixed, illustrative
+
+        const compTrans = Math.round(rawTrans * compactRatio);
+        const total = prefix + compTrans + mem + toolClip + userMsg;
+        const free  = Math.max(0, window - total);
+
+        outs.window.textContent       = window.toLocaleString();
+        outs.prefix.textContent       = prefix.toLocaleString();
+        outs.rawTrans.textContent     = rawTrans.toLocaleString();
+        outs.compactRatio.textContent = compactRatio.toFixed(2);
+        outs.toolClip.textContent     = toolClip.toLocaleString();
+        outs.mem.textContent          = mem.toLocaleString();
+        totalEl.textContent           = total.toLocaleString();
+        freeEl.textContent            = free.toLocaleString();
+
+        const segs = [
+            ['s-prefix',   prefix,    'prefix'],
+            ['s-trans',    compTrans, 'transcript'],
+            ['s-mem',      mem,       'mem'],
+            ['s-tool',     toolClip,  'tool'],
+            ['s-user',     userMsg,   'user'],
+            ['s-headroom', free,      'free'],
+        ];
+        const denom = total + free;
+        let html = '';
+        for (const [cls, val, label] of segs) {
+            const pct = (val / denom) * 100;
+            const text = pct > 8 ? label : '';
+            html += '<div class="ctx-seg ' + cls + '" style="width:' + pct.toFixed(2) + '%">' + text + '</div>';
+        }
+        bar.innerHTML = html;
+
+        if (total > window) warnEl.classList.add('show'); else warnEl.classList.remove('show');
+    }
+    Object.values(els).forEach(el => el.addEventListener('input', recomputeCtx));
+    recomputeCtx();
+</script>
+</body>
+</html>
