@@ -9,12 +9,12 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #0a0a0a; --bg-card: #0d1117; --bg-code: #161b22;
-            --text-primary: #e6edf3; --text-secondary: #8b949e;
-            --accent: #76B900; --accent-dim: #76B90044; --accent-glow: #76B90033;
-            --warm: #ffa657; --warm-dim: rgba(255,166,87,0.14);
-            --bad:  #ff7b72;
-            --border: #21262d;
+            --bg-primary: #1c1815; --bg-card: #231e1a; --bg-code: #2b2520;
+            --text-primary: #efe8dc; --text-secondary: #a2978b;
+            --accent: #aabd59; --accent-dim: #aabd5944; --accent-glow: #aabd5933;
+            --warm: #e3b174; --warm-dim: rgba(227,177,116,0.14);
+            --bad:  #de805a;
+            --border: #3a322b;
             --font-display: 'Space Grotesk', sans-serif;
             --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
             --font-body: 'Inter', sans-serif;
@@ -77,19 +77,19 @@
         .slide li strong { color: var(--text-primary); }
         .slide code { font-family: var(--font-mono); font-size: 0.88em;
                       background: var(--bg-code); border: 1px solid var(--border);
-                      padding: 0.05rem 0.35rem; border-radius: 3px; color: #c9d1d9; }
+                      padding: 0.05rem 0.35rem; border-radius: 3px; color: #dad1c5; }
         .code-block { background: var(--bg-code); border: 1px solid var(--border);
                       border-radius: 8px; margin: 1.25rem 0; overflow: hidden; }
         .code-header { font-family: var(--font-mono); font-size: 0.75rem;
-                       color: var(--accent); background: rgba(118, 185, 0, 0.08);
+                       color: var(--accent); background: rgba(170,189,89,0.08);
                        padding: 0.4rem 1rem; border-bottom: 1px solid var(--border); }
         .code-block pre { margin: 0; padding: 1rem; overflow-x: auto; }
         .code-block code { font-family: var(--font-mono); font-size: 0.85rem;
-                           line-height: 1.6; color: #c9d1d9; background: transparent;
+                           line-height: 1.6; color: #dad1c5; background: transparent;
                            border: none; padding: 0; }
-        .kw { color: #ff7b72; } .fn { color: #d2a8ff; } .str { color: #a5d6ff; }
-        .cm { color: #8b949e; font-style: italic; } .num { color: #79c0ff; }
-        .type { color: #ffa657; }
+        .kw { color: #de805a; } .fn { color: #d7bbdf; } .str { color: #bcdbd4; }
+        .cm { color: #a2978b; font-style: italic; } .num { color: #97cdc6; }
+        .type { color: #e3b174; }
         .table-wrap { overflow-x: auto; margin: 1.25rem 0; border-radius: 8px;
                       border: 1px solid var(--border); }
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
@@ -99,7 +99,7 @@
         td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border);
              color: var(--text-secondary); }
         tr:last-child td { border-bottom: none; }
-        tr:nth-child(even) td { background: rgba(13, 17, 23, 0.5); }
+        tr:nth-child(even) td { background: rgba(35,30,26,0.5); }
         .diagram-vertical { display: flex; flex-direction: column; align-items: center;
                             gap: 0.3rem; margin: 1.5rem 0; padding: 1.5rem;
                             background: var(--bg-card); border: 1px solid var(--border);
@@ -111,7 +111,7 @@
                        border: 1px solid var(--border); border-radius: 6px;
                        color: var(--text-primary); text-align: center; white-space: nowrap; }
         .diagram-box.accent { border-color: var(--accent); color: var(--accent);
-                              background: rgba(118, 185, 0, 0.08); }
+                              background: rgba(170,189,89,0.08); }
         .diagram-grid { display: grid; gap: 0.75rem; margin: 1.5rem 0;
                         padding: 1.5rem; background: var(--bg-card);
                         border: 1px solid var(--border); border-radius: 8px; }
@@ -171,7 +171,7 @@
         .mem-card.work h4 { color: var(--accent); }
         .mem-card pre { background: var(--bg-code); border: 1px solid var(--border);
                         border-radius: 6px; padding: 0.85rem; font-family: var(--font-mono);
-                        font-size: 0.78rem; color: #c9d1d9; overflow-x: auto;
+                        font-size: 0.78rem; color: #dad1c5; overflow-x: auto;
                         margin: 0.5rem 0; }
         .mem-card .meta { font-family: var(--font-mono); font-size: 0.7rem;
                           color: var(--text-secondary); margin-top: 0.5rem; }
@@ -190,13 +190,13 @@
                         overflow: hidden; margin: 0.7rem 0; }
         .ctx-seg { display: flex; align-items: center; justify-content: center;
                    font-family: var(--font-mono); font-size: 0.7rem;
-                   color: #050505; font-weight: 600; transition: width 0.25s; }
-        .ctx-seg.s-prefix    { background: rgba(118,185,0,0.85); }
-        .ctx-seg.s-trans     { background: rgba(118,185,0,0.55); color: #fff; }
-        .ctx-seg.s-mem       { background: rgba(255,166,87,0.85); color: #050505; }
-        .ctx-seg.s-tool      { background: rgba(255,123,114,0.65); color: #fff; }
-        .ctx-seg.s-user      { background: rgba(255,123,114,0.40); color: #fff; }
-        .ctx-seg.s-headroom  { background: #21262d; color: #8b949e; }
+                   color: #1a1614; font-weight: 600; transition: width 0.25s; }
+        .ctx-seg.s-prefix    { background: rgba(170,189,89,0.85); }
+        .ctx-seg.s-trans     { background: rgba(170,189,89,0.55); color: #faf6f0; }
+        .ctx-seg.s-mem       { background: rgba(227,177,116,0.85); color: #1a1614; }
+        .ctx-seg.s-tool      { background: rgba(222,128,90,0.65); color: #faf6f0; }
+        .ctx-seg.s-user      { background: rgba(222,128,90,0.40); color: #faf6f0; }
+        .ctx-seg.s-headroom  { background: #3a322b; color: #a2978b; }
         .ctx-key { display: flex; gap: 0.6rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.7rem; margin-top: 0.4rem; }
         .ctx-key span { padding: 0.1rem 0.55rem; border-radius: 999px; }
         .ctx-warn { color: var(--warm); font-family: var(--font-mono); font-size: 0.78rem;
@@ -412,14 +412,14 @@
     <div class="canvas-wrap">
         <svg viewBox="0 0 700 200" width="700" height="200" xmlns="http://www.w3.org/2000/svg">
             <style>
-                .ax  { stroke: #30363d; stroke-width: 1; }
-                .lbl { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
-                .ttl { fill: #76B900; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; }
-                .bar1 { fill: #76B900; }
-                .bar2 { fill: rgba(118,185,0,0.55); }
-                .bar3 { fill: rgba(118,185,0,0.30); }
-                .bar4 { fill: rgba(255,166,87,0.50); }
-                .bar5 { fill: rgba(255,123,114,0.50); }
+                .ax  { stroke: #463e36; stroke-width: 1; }
+                .lbl { fill: #a2978b; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+                .ttl { fill: #aabd59; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; }
+                .bar1 { fill: #aabd59; }
+                .bar2 { fill: rgba(170,189,89,0.55); }
+                .bar3 { fill: rgba(170,189,89,0.30); }
+                .bar4 { fill: rgba(227,177,116,0.50); }
+                .bar5 { fill: rgba(222,128,90,0.50); }
             </style>
             <text class="ttl" x="20" y="22">Compression aggressiveness vs turn age</text>
 
@@ -638,12 +638,12 @@
 
         <div class="ctx-bar-wrap" id="ctxBar"></div>
         <div class="ctx-key">
-            <span style="background:rgba(118,185,0,0.85); color:#050505;">stable prefix</span>
-            <span style="background:rgba(118,185,0,0.55); color:#fff;">compacted transcript</span>
-            <span style="background:rgba(255,166,87,0.85); color:#050505;">working memory</span>
-            <span style="background:rgba(255,123,114,0.65); color:#fff;">tool result</span>
-            <span style="background:rgba(255,123,114,0.40); color:#fff;">user msg</span>
-            <span style="background:#21262d; color:#8b949e;">headroom</span>
+            <span style="background:rgba(170,189,89,0.85); color:#1a1614;">stable prefix</span>
+            <span style="background:rgba(170,189,89,0.55); color:#faf6f0;">compacted transcript</span>
+            <span style="background:rgba(227,177,116,0.85); color:#1a1614;">working memory</span>
+            <span style="background:rgba(222,128,90,0.65); color:#faf6f0;">tool result</span>
+            <span style="background:rgba(222,128,90,0.40); color:#faf6f0;">user msg</span>
+            <span style="background:#3a322b; color:#a2978b;">headroom</span>
         </div>
         <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); margin-top: 0.5rem;">
             Total prompt: <span id="ctxTotal">&mdash;</span> tok &middot; headroom: <span id="ctxFree">&mdash;</span> tok
